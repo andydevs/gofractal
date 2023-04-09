@@ -9,6 +9,7 @@ import (
 	"math/cmplx"
 	"os"
 	"runtime"
+	"sync"
 )
 
 // Image size
@@ -21,22 +22,22 @@ func main() {
 
 	// Shard image dimensions
 	shardsInX, shardsInY := shardDimensions(runtime.NumCPU())
-
-	// Show if we were to shard
-	fmt.Println("If we were to shard")
 	imgShardW := imageWidth / shardsInX
 	imgShardH := imageHeight / shardsInY
-	fmt.Printf("Image shard grid: %d by %d\n", shardsInX, shardsInY)
-	fmt.Printf("Image shard size: %d by %d\n", imgShardW, imgShardH)
 
-	// Cell calculation
-	var iters uint8
-	for i := 0; i < imageWidth; i++ {
-		for j := 0; j < imageHeight; j++ {
-			iters = mandelbrot(i, j)
-			img.SetGray(i, j, color.Gray{Y: iters})
+	// Run shards
+	fmt.Printf("Parallel grid %d x %d of %d x %d shards\n", shardsInX, shardsInY, imgShardW, imgShardH)
+	var i1, j1 int
+	var wg sync.WaitGroup
+	for i0 := 0; i0 < imageWidth; i0 += imgShardW {
+		for j0 := 0; j0 < imageHeight; j0 += imgShardH {
+			i1 = i0 + imgShardW
+			j1 = j0 + imgShardH
+			wg.Add(1)
+			go shardWorker(i0, j0, i1, j1, img, &wg)
 		}
 	}
+	wg.Wait()
 
 	// Write image
 	var err error
@@ -49,6 +50,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func shardWorker(i0, j0, i1, j1 int, img *image.Gray, wg *sync.WaitGroup) {
+	var iters uint8
+	for i := i0; i < i1; i++ {
+		for j := j0; j < j1; j++ {
+			iters = mandelbrot(i, j)
+			img.SetGray(i, j, color.Gray{Y: iters})
+		}
+	}
+	(*wg).Done()
 }
 
 func shardDimensions(n int) (int, int) {
