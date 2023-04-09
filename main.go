@@ -1,33 +1,39 @@
 package main
 
 import (
-	"fmt"
-	"math"
+	"image"
+	"image/color"
+	"image/png"
 	"os"
 )
 
 func main() {
 	// Image
-	image := [60][40]uint8{}
+	img := image.NewGray(image.Rect(0, 0, 600, 400))
 
 	// Cell calculation
-	for i, row := range image {
-		for j := range row {
-			image[i][j] = uint8((j * i) % 256)
+	var iters uint8
+	bounds := img.Bounds().Max
+	for i := 0; i < bounds.X; i++ {
+		for j := 0; j < bounds.Y; j++ {
+			iters = mandelbrot(i, j)
+			img.SetGray(i, j, color.Gray{Y: iters})
 		}
 	}
 
 	// Write image
-	f, err := os.Create("notimage.txt")
+	var err error
+	f, err := os.Create("image.png")
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	for _, row := range image {
-		for _, cell := range row {
-			toPrint := uint8(math.Pow10(int(cell) / 100))
-			fmt.Fprintf(f, "%3d ", toPrint)
-		}
-		fmt.Fprintln(f)
+	err = png.Encode(f, img)
+	if err != nil {
+		panic(err)
 	}
+}
+
+func mandelbrot(x, y int) uint8 {
+	return uint8(x * y % 256)
 }
