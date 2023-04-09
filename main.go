@@ -4,12 +4,18 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
+	"math/cmplx"
 	"os"
 )
 
+// Image size
+const imageWidth = 600
+const imageHeight = 400
+
 func main() {
 	// Image
-	img := image.NewGray(image.Rect(0, 0, 600, 400))
+	img := image.NewGray(image.Rect(0, 0, imageWidth, imageHeight))
 
 	// Cell calculation
 	var iters uint8
@@ -34,6 +40,17 @@ func main() {
 	}
 }
 
-func mandelbrot(x, y int) uint8 {
-	return uint8(x * y % 256)
+func mandelbrot(i, j int) uint8 {
+	x := float64(i)
+	y := float64(j)
+	rescale := float64(math.Min(imageWidth, imageHeight))
+	cX := 4.0*(x/rescale) - 2.0*imageWidth/rescale
+	cY := 2.0 - 4.0*(y/rescale)
+	c := complex(cX, cY)
+	z := 0 + 0i
+	var n uint8
+	for n = 0; n < 255 && cmplx.Abs(z) < 2; n++ {
+		z = z*z + c
+	}
+	return n
 }
