@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"time"
 )
 
 // Image size
@@ -22,18 +23,27 @@ type iterations uint32
 // Maximum iterations
 const maxIterations = 2047
 
+// Maximum threads
+const maxThreads = 8
+
 func main() {
 	// Image
 	img := image.NewRGBA(image.Rect(0, 0, imageWidth, imageHeight))
 
 	// Shard image dimensions
-	shardsInX, shardsInY := shardDimensions(runtime.NumCPU())
+	threads := runtime.NumCPU()
+	if threads > maxThreads {
+		threads = maxThreads
+	}
+	fmt.Printf("Threads: %d\n", threads)
+	shardsInX, shardsInY := shardDimensions(threads)
 	imgShardW := imageWidth / shardsInX
 	imgShardH := imageHeight / shardsInY
+	fmt.Printf("Parallel grid %d x %d of %d x %d shards\n", shardsInX, shardsInY, imgShardW, imgShardH)
 
 	// Run shards
-	fmt.Printf("Parallel grid %d x %d of %d x %d shards\n", shardsInX, shardsInY, imgShardW, imgShardH)
-	fmt.Printf("Remainder: %d x %d\n", imageWidth%shardsInX, imageHeight%shardsInY)
+	fmt.Printf("Running...")
+	start := time.Now()
 	var i1, j1 int
 	var wg sync.WaitGroup
 	for i0 := 0; i0 < imageWidth; i0 += imgShardW {
@@ -45,9 +55,11 @@ func main() {
 		}
 	}
 	wg.Wait()
+	elapsed := time.Since(start)
+	fmt.Printf("Done in %s\n", elapsed.String())
 
 	// Write image
-	fmt.Printf("Saving image...")
+	fmt.Printf("Saving image...\n")
 	var err error
 	f, err := os.Create("image.png")
 	if err != nil {
@@ -58,7 +70,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Job's done!\n")
 }
 
 func shardWorker(i0, j0, i1, j1 int, img *image.RGBA, wg *sync.WaitGroup) {
